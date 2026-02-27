@@ -1,0 +1,29 @@
+name: Rakit APK Otomatis
+
+on:
+  workflow_dispatch: # Memunculkan tombol "Run" manual
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build APK
+        run: |
+          wget https://github.com/REAndroid/APKEditor/releases/download/V1.4.1/APKEditor-1.4.1.jar -O APKEditor.jar
+          # Perintah merakit file di root menjadi APK
+          java -jar APKEditor.jar b -i . -o hasil_rakitan.apk
+
+      - name: Simpan Hasil
+        uses: actions/upload-artifact@v4
+        with:
+          name: APK-Siap-Cek
+          path: hasil_rakitan.apk
