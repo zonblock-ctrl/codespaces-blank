@@ -1,48 +1,48 @@
-name: Build-APK-Undangan
+name: Rakit dan Sign APK Otomatis
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Menjalankan manual dari tab Actions
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout-Kode
-        uses: actions/checkout@v3
+      - name: Checkout Kode
+        uses: actions/checkout@v4
 
-      - name: Setup-Java-17
-        uses: actions/setup-java@v3
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
           java-version: '17'
+          distribution: 'temurin'
 
-      - name: Install-Build-Tools
+      - name: Install Build Tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y zipalign apksigner zip
+          sudo apt-get install -y apksigner zipalign
 
-      - name: Build-APK-Mentah
+      - name: Download APKEditor
         run: |
-          rm -f unsigned.apk aligned.apk final.apk
-          # Mengemas folder menjadi APK, mengabaikan file yang tidak perlu
-          zip -r unsigned.apk . -x ".git/*" ".github/*" "META-INF/*" "*.keystore"
+          wget https://github.com/REAndroid/APKEditor/releases/download/V1.4.1/APKEditor-1.4.1.jar -O APKEditor.jar
 
-      - name: Proses-ZipAlign
+      - name: Build APK dari Root
         run: |
-          zipalign -f -v 4 unsigned.apk aligned.apk
+          # Merakit folder res, classes.dex, dan manifest menjadi APK mentah
+          java -jar APKEditor.jar b -i . -o rakitan_unsigned.apk
 
-      - name: Proses-Signing
+      - name: ZipAlign dan Signing (Penting untuk Install)
         run: |
-          rm -f debug.keystore
-          # Generate keystore baru secara otomatis
-          keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" -storepass android -keypass android
-          # Sign APK
-          apksigner sign --ks debug.keystore --ks-pass pass:android --key-pass pass:android --out final.apk aligned.apk
-          # Verifikasi
-          apksigner verify final.apk
+          # Optimasi struktur internal APK
+          zipalign -v 4 rakitan_unsigned.apk rakitan_aligned.apk
+          
+          # Membuat kunci tanda tangan sementara (Debug Key)
+          keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          
+          # Memberikan tanda tangan digital agar bisa di-install di HP
+          apksigner sign --ks debug.keystore --ks-pass pass:android --key-pass pass:android --out hasil_final.apk rakitan_aligned.apk
 
-      - name: Upload-Artifact
-        uses: actions/upload-artifact@v3
+      - name: Upload APK ke Artifacts
+        uses: actions/upload-artifact@v4
         with:
-          name: APK-Undangan-Final
-          path: final.apk
+          name: APK-Siap-Install
+          path: hasil_final.apk
