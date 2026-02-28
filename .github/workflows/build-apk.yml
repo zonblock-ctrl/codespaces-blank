@@ -44,5 +44,5 @@ jobs:
       - name: Upload APK ke Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: APK-Siap-Install
-          path: hasil_final.apk
+          name: Undangan Pernikahan💌
+          path: Undangan Pernikahan💌.apk
