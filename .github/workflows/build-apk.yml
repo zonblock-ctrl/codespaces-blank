@@ -23,23 +23,22 @@ jobs:
 
       - name: Build APK Mentah
         run: |
+          # Bersihkan sisa build sebelumnya
           rm -f unsigned.apk aligned.apk Konfirmasi_Undangan.apk
-          # Bungkus semua file menjadi APK
-          zip -r unsigned.apk . -x ".git/*" ".github/*" "*.keystore"
+          # Bungkus folder menjadi APK, abaikan file metadata lama
+          zip -r unsigned.apk . -x ".git/*" ".github/*" "META-INF/*" "*.keystore"
 
-      - name: Perbaikan ZipAlign
+      - name: Perbaikan ZipAlign (Fix Error)
         run: |
           zipalign -f -v 4 unsigned.apk aligned.apk
 
-      - name: Signing APK (DIPERBAIKI)
+      - name: Signing APK (Tanda Tangan Digital)
         run: |
-          # Hapus keystore lama jika ada untuk menghindari error
-          rm -f debug.keystore
-          # Buat kunci baru dengan instruksi non-interaktif
+          # Buat kunci keamanan baru otomatis
           keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" -storepass android -keypass android
-          # Proses Signing
+          # Sign agar bisa diinstal di HP tanpa "masalah penguraian"
           apksigner sign --ks debug.keystore --ks-pass pass:android --key-pass pass:android --out Konfirmasi_Undangan.apk aligned.apk
-          # Verifikasi hasil signing
+          # Verifikasi hasil akhir
           apksigner verify Konfirmasi_Undangan.apk
 
       - name: Upload Hasil Akhir
