@@ -1,4 +1,4 @@
-name: Build APK Undangan
+name: Build-APK-Undangan
 
 on:
   workflow_dispatch:
@@ -7,45 +7,42 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Kode
+      - name: Checkout-Kode
         uses: actions/checkout@v3
 
-      - name: Setup Java 17
+      - name: Setup-Java-17
         uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Install Build Tools
+      - name: Install-Build-Tools
         run: |
           sudo apt-get update
           sudo apt-get install -y zipalign apksigner zip
 
-      - name: Build APK Mentah
+      - name: Build-APK-Mentah
         run: |
-          # Hapus file sisa agar tidak konflik
-          rm -f unsigned.apk aligned.apk "Undangan_Pernikahan.apk"
-          # Kompres folder menjadi APK
+          rm -f unsigned.apk aligned.apk final.apk
+          # Mengemas folder menjadi APK, mengabaikan file yang tidak perlu
           zip -r unsigned.apk . -x ".git/*" ".github/*" "META-INF/*" "*.keystore"
 
-      - name: Fix ZipAlign
+      - name: Proses-ZipAlign
         run: |
-          # Optimasi struktur file APK
           zipalign -f -v 4 unsigned.apk aligned.apk
 
-      - name: Fix Signing APK (Tanda Tangan Digital)
+      - name: Proses-Signing
         run: |
-          # Hapus keystore lama jika ada
           rm -f debug.keystore
-          # Buat kunci baru secara otomatis (Non-Interaktif)
+          # Generate keystore baru secara otomatis
           keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" -storepass android -keypass android
-          # Sign APK agar bisa diinstal tanpa "masalah penguraian"
-          apksigner sign --ks debug.keystore --ks-pass pass:android --key-pass pass:android --out "Undangan_Pernikahan.apk" aligned.apk
-          # Verifikasi hasil akhir
-          apksigner verify "Undangan_Pernikahan.apk"
+          # Sign APK
+          apksigner sign --ks debug.keystore --ks-pass pass:android --key-pass pass:android --out final.apk aligned.apk
+          # Verifikasi
+          apksigner verify final.apk
 
-      - name: Upload APK Hasil
+      - name: Upload-Artifact
         uses: actions/upload-artifact@v3
         with:
           name: APK-Undangan-Final
-          path: "Undangan_Pernikahan.apk"
+          path: final.apk
