@@ -23,17 +23,27 @@ jobs:
 
       - name: Build APK Mentah
         run: |
-          # Bersihkan sisa build sebelumnya
           rm -f unsigned.apk aligned.apk Konfirmasi_Undangan.apk
-          # Bungkus folder menjadi APK, abaikan file git
-          zip -r unsigned.apk . -x ".git/*" ".github/*" "debug.keystore"
+          # Bungkus semua file menjadi APK
+          zip -r unsigned.apk . -x ".git/*" ".github/*" "*.keystore"
 
-      - name: Perbaikan ZipAlign (Fix Error)
+      - name: Perbaikan ZipAlign
         run: |
-          # Optimasi struktur agar tidak "APK Rusak"
           zipalign -f -v 4 unsigned.apk aligned.apk
 
-      - name: Signing APK (Tanda Tangan Digital)
+      - name: Signing APK (DIPERBAIKI)
         run: |
-          # Buat kunci keamanan otomatis
-          keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" -
+          # Hapus keystore lama jika ada untuk menghindari error
+          rm -f debug.keystore
+          # Buat kunci baru dengan instruksi non-interaktif
+          keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" -storepass android -keypass android
+          # Proses Signing
+          apksigner sign --ks debug.keystore --ks-pass pass:android --key-pass pass:android --out Konfirmasi_Undangan.apk aligned.apk
+          # Verifikasi hasil signing
+          apksigner verify Konfirmasi_Undangan.apk
+
+      - name: Upload Hasil Akhir
+        uses: actions/upload-artifact@v3
+        with:
+          name: APK-Konfirmasi-Undangan
+          path: Konfirmasi_Undangan.apk
