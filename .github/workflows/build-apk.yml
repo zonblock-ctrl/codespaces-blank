@@ -1,4 +1,4 @@
-name: Rakit Konfirmasi Undangan
+name: Build APK Undangan
 
 on:
   workflow_dispatch:
@@ -23,26 +23,29 @@ jobs:
 
       - name: Build APK Mentah
         run: |
-          # Bersihkan sisa build sebelumnya
-          rm -f unsigned.apk aligned.apk Konfirmasi_Undangan.apk
-          # Bungkus folder menjadi APK, abaikan file metadata lama
+          # Hapus file sisa agar tidak konflik
+          rm -f unsigned.apk aligned.apk "Undangan_Pernikahan.apk"
+          # Kompres folder menjadi APK
           zip -r unsigned.apk . -x ".git/*" ".github/*" "META-INF/*" "*.keystore"
 
-      - name: Perbaikan ZipAlign (Fix Error)
+      - name: Fix ZipAlign
         run: |
+          # Optimasi struktur file APK
           zipalign -f -v 4 unsigned.apk aligned.apk
 
-      - name: Signing APK (Tanda Tangan Digital)
+      - name: Fix Signing APK (Tanda Tangan Digital)
         run: |
-          # Buat kunci keamanan baru otomatis
+          # Hapus keystore lama jika ada
+          rm -f debug.keystore
+          # Buat kunci baru secara otomatis (Non-Interaktif)
           keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" -storepass android -keypass android
-          # Sign agar bisa diinstal di HP tanpa "masalah penguraian"
-          apksigner sign --ks debug.keystore --ks-pass pass:android --key-pass pass:android --out Konfirmasi_Undangan.apk aligned.apk
+          # Sign APK agar bisa diinstal tanpa "masalah penguraian"
+          apksigner sign --ks debug.keystore --ks-pass pass:android --key-pass pass:android --out "Undangan_Pernikahan.apk" aligned.apk
           # Verifikasi hasil akhir
-          apksigner verify Konfirmasi_Undangan.apk
+          apksigner verify "Undangan_Pernikahan.apk"
 
-      - name: Upload Hasil Akhir
+      - name: Upload APK Hasil
         uses: actions/upload-artifact@v3
         with:
-          name: APK-Konfirmasi-Undangan
-          path: Konfirmasi_Undangan.apk
+          name: APK-Undangan-Final
+          path: "Undangan_Pernikahan.apk"
