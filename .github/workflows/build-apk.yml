@@ -1,11 +1,48 @@
-      - name: Build and Sign APK
+name: Rakit dan Sign APK Otomatis
+
+on:
+  workflow_dispatch: # Menjalankan manual dari tab Actions
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Kode
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install Build Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apksigner zipalign
+
+      - name: Download APKEditor
         run: |
           wget https://github.com/REAndroid/APKEditor/releases/download/V1.4.1/APKEditor-1.4.1.jar -O APKEditor.jar
-          # Rakit file
-          java -jar APKEditor.jar b -i . -o hasil_unaligned.apk
+
+      - name: Build APK dari Root
+        run: |
+          # Merakit folder res, classes.dex, dan manifest menjadi APK mentah
+          java -jar APKEditor.jar b -i . -o rakitan_unsigned.apk
+
+      - name: ZipAlign dan Signing (Penting untuk Install)
+        run: |
+          # Optimasi struktur internal APK
+          zipalign -v 4 rakitan_unsigned.apk rakitan_aligned.apk
           
-          # Buat Keystore sementara untuk tanda tangan
+          # Membuat kunci tanda tangan sementara (Debug Key)
           keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           
-          # Berikan tanda tangan digital (Signing)
-          apksigner sign --ks debug.keystore --ks-pass pass:android --key-pass pass:android --out hasil_rakitan.apk hasil_unaligned.apk
+          # Memberikan tanda tangan digital agar bisa di-install di HP
+          apksigner sign --ks debug.keystore --ks-pass pass:android --key-pass pass:android --out hasil_final.apk rakitan_aligned.apk
+
+      - name: Upload APK ke Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: APK-Siap-Install
+          path: hasil_final.apk
