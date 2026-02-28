@@ -1,20 +1,39 @@
-      - name: Build APK dari Root
-        run: |
-          # Pastikan menghapus sisa build lama agar tidak bentrok
-          rm -f rakitan_unsigned.apk rakitan_aligned.apk hasil_final.apk
-          # Kompres folder menjadi APK (Abaikan file sistem GitHub)
-          zip -r rakitan_unsigned.apk . -x ".git/*" ".github/*" "debug.keystore"
+name: Rakit Konfirmasi Undangan
 
-      - name: ZipAlign dan Signing
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Kode
+        uses: actions/checkout@v3
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Install Build Tools
         run: |
-          # 1. Cek apakah file benar-benar ada sebelum di-align
-          if [ ! -f rakitan_unsigned.apk ]; then echo "File APK tidak ditemukan!"; exit 1; fi
-          
-          # 2. Jalankan ZipAlign (Gunakan -f untuk overwrite jika ada file lama)
-          zipalign -f -v 4 rakitan_unsigned.apk rakitan_aligned.apk
-          
-          # 3. Buat Keystore baru otomatis
-          keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" -storepass android -keypass android
-          
-          # 4. Sign dengan apksigner (Gunakan nama baru: Konfirmasi Undangan)
-          apksigner sign --ks debug.keystore --ks-pass pass:android --key-pass pass:android --out "Konfirmasi_Undangan.apk" rakitan_aligned.apk
+          sudo apt-get update
+          sudo apt-get install -y zipalign apksigner zip
+
+      - name: Build APK Mentah
+        run: |
+          # Bersihkan sisa build sebelumnya
+          rm -f unsigned.apk aligned.apk Konfirmasi_Undangan.apk
+          # Bungkus folder menjadi APK, abaikan file git
+          zip -r unsigned.apk . -x ".git/*" ".github/*" "debug.keystore"
+
+      - name: Perbaikan ZipAlign (Fix Error)
+        run: |
+          # Optimasi struktur agar tidak "APK Rusak"
+          zipalign -f -v 4 unsigned.apk aligned.apk
+
+      - name: Signing APK (Tanda Tangan Digital)
+        run: |
+          # Buat kunci keamanan otomatis
+          keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" -
